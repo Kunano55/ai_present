@@ -243,19 +243,6 @@ h2{margin:0; font-size:clamp(1.35rem,2.2vw,2rem); font-weight:600; line-height:1
   grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
 .demo__left,.demo__right{display:flex;flex-direction:column;gap:.75rem;min-height:0}
 
-.file-card{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:.75rem .9rem}
-.file-card__top{display:flex;align-items:center;gap:.75rem}
-.file-card__icon{width:2rem;height:2rem;border-radius:var(--r);display:grid;place-items:center;
-  background:var(--surface-2);border:1px solid var(--line-soft);color:var(--txt-2);font-size:.95rem;flex:0 0 auto}
-.file-card__name{font-family:var(--ff-mono);font-weight:500;font-size:.9rem;color:var(--txt)}
-.file-card__path{font-size:.7rem;color:var(--txt-3)}
-.badge{margin-left:auto;font-family:var(--ff-mono);font-size:.62rem;padding:.2em .55em;border-radius:4px;
-  border:1px solid var(--line);color:var(--txt-2);background:var(--surface-2);white-space:nowrap}
-.badge.is-err{border-color:color-mix(in srgb,var(--c-bad) 45%,transparent);color:var(--c-bad)}
-.file-card__stats{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.7rem}
-.stat-chip{font-family:var(--ff-mono);font-size:.66rem;color:var(--txt-3);
-  border:1px solid var(--line-soft);background:var(--surface-2);padding:.16rem .5rem;border-radius:4px}
-.stat-chip b{color:var(--txt-2);font-weight:500}
 
 .roll-panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
   border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:.7rem .8rem .8rem}
@@ -379,7 +366,7 @@ h2{margin:0; font-size:clamp(1.35rem,2.2vw,2rem); font-weight:600; line-height:1
 .p-node text{font-family:var(--ff)}
 .p-node .p-t{font-size:14px;font-weight:600;fill:var(--txt)}
 .p-node .p-s{font-size:10.5px;fill:var(--txt-3);font-family:var(--ff-mono)}
-.p-node{opacity:.4;transition:opacity .35s var(--ease)}
+.p-node{opacity:.55;transition:opacity .35s var(--ease)}
 .p-node.is-on{opacity:1}
 .p-edge{fill:none;stroke:var(--line);stroke-width:1.2;transition:stroke .35s}
 .p-edge.is-on{stroke:var(--txt-3)}

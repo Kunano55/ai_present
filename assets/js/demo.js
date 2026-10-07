@@ -32,9 +32,7 @@ export class SvsDemo {
     this.btnSing = $('#btnSing', root);
     this.btnStop = $('#btnStop', root);
     this.input = $('#lyricInput', root);
-    this.stats = $('#midStats', root);
     this.mini = $('#miniStats', root);
-    this.status = $('#midStatus', root);
     this.steps = [...root.querySelectorAll('.step-item')];
     this.synth = new SingSynth();
     this.rate = 1;
@@ -51,7 +49,6 @@ export class SvsDemo {
       const m = await loadMidi('untitled.mid');
       if (!m.notes.length) throw new Error('ไม่พบโน้ตในไฟล์');
       this.midi = m;
-      this.status.textContent = 'อ่านจาก repo แล้ว';
       this.fromRepo = true;
     } catch (err) {
       console.warn('[demo] fallback:', err);
@@ -70,13 +67,10 @@ export class SvsDemo {
         tickSec,
         trackNames: ['MIDI Out'],
       };
-      this.status.textContent = 'ใช้ข้อมูลสำรอง';
-      this.status.classList.add('is-err');
       this.fromRepo = false;
     }
 
     this.setLyric(this.input.value);
-    this.renderStats();
     this.renderRoll();
     this.bind();
     this.loaded = true;
@@ -104,26 +98,6 @@ export class SvsDemo {
     this.renderMini();
   }
 
-  renderStats() {
-    const m = this.midi;
-    const pitches = m.notes.map(n => n.midi);
-    const lo = Math.min(...pitches), hi = Math.max(...pitches);
-    const chips = [
-      ['format', `${m.format} · ${m.nTracks} tracks`],
-      ['division', `${m.division} ticks/qn`],
-      ['tempo', `${m.bpm.toFixed(1)} BPM`],
-      ['meter', m.timeSig],
-      ['notes', `${m.notes.length} ตัว`],
-      ['range', `${noteName(lo)} – ${noteName(hi)}`],
-      ['length', `${m.durationSec.toFixed(2)} s`],
-    ];
-    this.stats.innerHTML = '';
-    chips.forEach(([k, v]) => {
-      const c = el('span', 'stat-chip');
-      c.innerHTML = `${k} <b>${v}</b>`;
-      this.stats.appendChild(c);
-    });
-  }
 
   renderMini() {
     const frames = Math.round(this.midi.durationSec / FRAME_SHIFT);
@@ -182,12 +156,13 @@ export class SvsDemo {
     this.midi.notes.forEach((n, i) => {
       const a = this.assign[i] || { mora: '', romaji: '' };
       const b = el('div', 'roll__note');
+      const rowH = 100 / this.rows;                       // ความสูง 1 แถว (%)
       const top = ((this.hi - n.midi) / this.rows) * 100;
-      const h = 100 / this.rows;
-      b.style.top = `calc(${top}% + 6%)`;
-      b.style.height = `calc(${h}% - 12%)`;
-      b.style.left = `calc(${left0}% + ${(n.startTick / this.totalTicks) * usable}%)`;
-      b.style.width = `calc(${(n.durTick / this.totalTicks) * usable}% - 3px)`;
+      // NOTE: ห้ามใช้ calc(% - %) เพราะจะติดลบแล้วถูกหนีบเป็น 0 → แถบหาย
+      b.style.top = `${(top + rowH * 0.14).toFixed(3)}%`;
+      b.style.height = `${(rowH * 0.72).toFixed(3)}%`;
+      b.style.left = `${(left0 + (n.startTick / this.totalTicks) * usable).toFixed(3)}%`;
+      b.style.width = `calc(${((n.durTick / this.totalTicks) * usable).toFixed(3)}% - 3px)`;
       b.title = `${n.name} · ${n.durTick} ticks · ${a.mora} (${a.romaji})`;
       b.appendChild(document.createTextNode(a.mora));
       b.addEventListener('click', () => this.previewNote(i));
@@ -233,9 +208,7 @@ export class SvsDemo {
     try {
       await this.synth.ready();
     } catch (err) {
-      this.status.textContent = 'เสียงไม่พร้อม';
-      this.status.classList.add('is-err');
-      console.warn(err);
+      console.warn('[demo] เสียงไม่พร้อม:', err);
       return;
     }
     this.synth.stop();
