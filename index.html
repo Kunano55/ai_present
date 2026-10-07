@@ -9,7 +9,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/deck.css">
+<link rel="stylesheet" href="assets/css/deck.css?v=3">
+<script>
+  /* ตั้งธีมก่อน paint (ไม่กระพริบ) + เป็น fallback ให้ปุ่ม ◐ ทำงานได้
+     แม้ ES module ด้านล่างโหลดไม่สำเร็จ (เช่น cache เก่า / เครือข่ายขัดข้อง) */
+  (function () {
+    var KEY = 'nnsvs-theme';
+    function get() { return document.documentElement.getAttribute('data-theme') || 'light'; }
+    function set(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem(KEY, t); } catch (e) {}
+    }
+    try { set(localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'); } catch (e) { set('light'); }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('#btnTheme') : null;
+      if (!b || window.__modulesReady) return;   // module จัดการเองแล้ว
+      set(get() === 'light' ? 'dark' : 'light');
+    });
+  })();
+</script>
 </head>
 <body>
 
@@ -428,6 +446,6 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="assets/js/main.js"></script>
+<script type="module" src="assets/js/main.js?v=3"></script>
 </body>
 </html>

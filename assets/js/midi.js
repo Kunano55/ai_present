@@ -156,9 +156,15 @@ export function parseMidi(buf) {
   };
 }
 
-/** โหลด + parse จาก URL */
-export async function loadMidi(url) {
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return parseMidi(await res.arrayBuffer());
+/** โหลด + parse จาก URL (มี timeout กันการค้าง → fallback ทำงานต่อได้) */
+export async function loadMidi(url, timeoutMs = 6000) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseMidi(await res.arrayBuffer());
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

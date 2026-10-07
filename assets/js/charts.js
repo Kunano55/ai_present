@@ -2,7 +2,7 @@
    charts.js — แผนภาพ/อนิเมชั่นทั้งหมดในเด็ค (สร้างเป็น SVG/HTML)
    ═══════════════════════════════════════════════════════════ */
 
-import { readColors } from './theme.js';
+import { readColors } from './theme.js?v=3';
 
 const NS = 'http://www.w3.org/2000/svg';
 let C = null;                       // palette ปัจจุบัน (refresh ทุกครั้งที่ build)

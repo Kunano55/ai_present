@@ -4,9 +4,9 @@
    → จับคู่ 1 โน้ต : 1 mora → ร้องด้วย formant synth
    ═══════════════════════════════════════════════════════════ */
 
-import { loadMidi, noteName, midiToHz } from './midi.js';
-import { splitMora, moraToRomaji, moraToVowel, moraToPhones } from './jp.js';
-import { SingSynth } from './synth.js';
+import { loadMidi, noteName, midiToHz } from './midi.js?v=3';
+import { splitMora, moraToRomaji, moraToVowel, moraToPhones } from './jp.js?v=3';
+import { SingSynth } from './synth.js?v=3';
 
 const FRAME_SHIFT = 0.005;      // 5 ms ตามในเปเปอร์
 const SHARP = new Set([1, 3, 6, 8, 10]);

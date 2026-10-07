@@ -9,12 +9,19 @@
 เป็นเว็บ static ล้วน ๆ ไม่ต้อง build ไม่ต้องลง dependency
 
 ```bash
-python3 -m http.server 8080 --bind 0.0.0.0
+python3 serve.py 8080          # แนะนำ: ส่ง Cache-Control: no-store ทุกไฟล์
 # เปิด http://localhost:8080
 ```
 
-> ต้องเสิร์ฟผ่าน HTTP (ไม่ใช่เปิด `index.html` ตรง ๆ) เพราะสไลด์ที่ 3 โหลด `untitled.mid`
-> ด้วย `fetch()` — ถ้าโหลดไม่ได้ โค้ดจะ fallback ไปใช้โน้ตที่ parse ไว้ล่วงหน้าให้อัตโนมัติ
+`python3 -m http.server 8080` ก็ใช้ได้ แต่**ไม่ส่ง header กัน cache** — เบราว์เซอร์อาจเก็บ
+`assets/*.js` ตัวเก่าไว้ แล้วกดปุ่ม/ธีมใหม่จะไม่ทำงาน (เคยเจอจริงระหว่างพัฒนา)
+นอกจากนี้ทุก import ยังห้อย `?v=N` ไว้เพื่อ bust cache — **ถ้าแก้โค้ดแล้วเบราว์เซอร์ยังแสดงของเก่า
+ให้ bump `V` ในไฟล์ JS + `index.html` หรือ hard reload (Ctrl/Cmd+Shift+R)**
+
+> ต้องเสิร์ฟผ่าน HTTP (ไม่ใช่เปิด `index.html` ตรง ๆ) เพราะสไลด์ 2 โหลด `untitled.mid`
+> ด้วย `fetch()` — ถ้าโหลดไม่ได้/ช้าเกิน 6 วินาที โค้ดจะ fallback ไปใช้โน้ตที่ parse ไว้ล่วงหน้า
+> ธีมถูกตั้งจาก inline script ใน `<head>` ก่อน paint จึงไม่กระพริบ และปุ่ม `◐` ยังมี fallback
+> ทำงานได้แม้ ES module โหลดไม่สำเร็จ
 
 ## สไลด์
 
@@ -53,7 +60,8 @@ D#3  F3  F#3  G#3  A#3  D#4  C#4  A#3  D#3  A#3  G#3  F#3  F3
 ## โครงสร้างไฟล์
 
 ```
-index.html          โครงสไลด์ทั้งหมด
+index.html          โครงสไลด์ทั้งหมด (+ inline script ตั้งธีมก่อน paint)
+serve.py            static server แบบ no-store (กันเบราว์เซอร์ใช้ของเก่าจาก cache)
 untitled.mid        ไฟล์ MIDI ต้นทาง (ใช้จริงในสไลด์ 3)
 assets/css/deck.css ธีม minimal (light/dark) + layout + อนิเมชั่น
 assets/js/theme.js  อ่าน palette จาก CSS variables + สลับธีม

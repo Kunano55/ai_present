@@ -3,7 +3,7 @@
    สร้างเป็น SVG แล้วปล่อย "แพ็กเก็ตข้อมูล" ไหลไปตามลูกศรทีละขั้น
    ═══════════════════════════════════════════════════════════ */
 
-import { readColors } from './theme.js';
+import { readColors } from './theme.js?v=3';
 
 const NS = 'http://www.w3.org/2000/svg';
 const VW = 1400, VH = 500;
