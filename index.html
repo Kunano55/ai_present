@@ -109,12 +109,21 @@
             <button data-speed="1" class="is-on">1×</button>
             <button data-speed="1.4">1.4×</button>
           </div>
+          <label class="cons-edit" title="ระดับเสียงพยัญชนะ: burst / เสียดทาน / ขึ้นจมูก">
+            <span>พยัญชนะ</span>
+            <input id="consLevel" type="range" min="0" max="200" step="5" value="120">
+            <b id="consVal">120%</b>
+          </label>
           <span class="kbd-hint">คลิกแถบโน้ตเพื่อฟังทีละพยางค์ · กด <kbd>S</kbd> เพื่อร้องทั้งท่อน</span>
           <label class="lyric-edit">
             <span>เนื้อร้อง (แก้ไขได้)</span>
             <input id="lyricInput" type="text" value="ながれてぐときのながででも" spellcheck="false" maxlength="40">
           </label>
         </div>
+
+        <p class="demo__note">เสียงในเดโมสร้างเองในเบราว์เซอร์ด้วย formant synth (Web Audio ล้วน — ไม่โหลดไฟล์เสียงหรือโมเดล)
+          ถ้าอยากฟังเสียงจริงจาก neural vocoder ของ NNSVS →
+          <a href="https://r9y9.github.io/projects/nnsvs/" target="_blank" rel="noopener">r9y9.github.io/projects/nnsvs ↗</a></p>
       </div>
 
       <aside class="demo__right">
@@ -133,7 +142,7 @@
           </div>
           <div class="step-item" data-step="3">
             <span class="step-item__n">4</span>
-            <div><b>เสียงร้อง</b><small>สังเคราะห์ด้วย formant synth จำลองสระของแต่ละพยางค์</small></div>
+            <div><b>เสียงร้อง</b><small>formant synth: พยัญชนะ (burst / เสียดทาน / ขึ้นจมูก / flap) + สระ + vibrato</small></div>
           </div>
         </div>
         <div class="mini-stats" id="miniStats"></div>

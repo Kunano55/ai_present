@@ -82,6 +82,17 @@ export function moraToVowel(mora) {
   return 'a';
 }
 
+/** mora → พยัญชนะต้น (k/g/s/sh/t/ch/ts/n/h/f/m/y/r/w/…) หรือ null ถ้าขึ้นด้วยสระ */
+export function moraToConsonant(mora) {
+  const h = toHiragana(mora);
+  if (h === 'ん' || h === 'っ' || h === 'ー') return null;
+  const v = moraToVowel(mora);
+  if (v === null) return null;
+  const r = moraToRomaji(mora);
+  const cons = r.slice(0, r.length - 1);
+  return cons || null;
+}
+
 /** mora → phoneme อย่างหยาบ (consonant + vowel) เพื่อโชว์ขั้น phone-level */
 export function moraToPhones(mora) {
   const r = moraToRomaji(mora);

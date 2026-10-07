@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 import { loadMidi, noteName, midiToHz } from './midi.js?v=3';
-import { splitMora, moraToRomaji, moraToVowel, moraToPhones } from './jp.js?v=3';
+import { splitMora, moraToRomaji, moraToVowel, moraToPhones, moraToConsonant } from './jp.js?v=3';
 import { SingSynth } from './synth.js?v=3';
 
 const FRAME_SHIFT = 0.005;      // 5 ms ตามในเปเปอร์
@@ -88,6 +88,7 @@ export class SvsDemo {
         mora: m,
         romaji: moraToRomaji(m),
         vowel: moraToVowel(m),
+        consonant: moraToConsonant(m),
         phones: moraToPhones(m),
         wrapped: this.moras.length > 0 && i >= this.moras.length,
         trimmed: this.moras.length > n && i >= n,
@@ -196,6 +197,14 @@ export class SvsDemo {
         if (this.playing) this.play();
       });
     });
+    const cl = document.getElementById('consLevel');
+    const cv = document.getElementById('consVal');
+    this.consLevel = cl ? parseInt(cl.value, 10) / 100 : 1.2;
+    if (cl) cl.addEventListener('input', () => {
+      this.consLevel = parseInt(cl.value, 10) / 100;
+      if (cv) cv.textContent = cl.value + '%';
+      if (this.playing) this.play();
+    });
     let t;
     this.input.addEventListener('input', () => {
       clearTimeout(t);
@@ -220,11 +229,11 @@ export class SvsDemo {
       const a = this.assign[base + k];
       const start = onlyIndex != null ? 0 : n.startSec;
       const dur = onlyIndex != null ? Math.max(0.42, n.durSec) : n.durSec;
-      return { hz: n.hz || midiToHz(n.midi), startSec: start, durSec: dur, vowel: a.vowel };
+      return { hz: n.hz || midiToHz(n.midi), startSec: start, durSec: dur, vowel: a.vowel, consonant: a.consonant };
     });
 
     const totalSec = this.midi.durationSec;
-    const { t0, sched, end } = this.synth.sing(items, { rate: this.rate });
+    const { t0, sched, end } = this.synth.sing(items, { rate: this.rate, consLevel: this.consLevel });
     this.playing = true;
     this.btnSing.classList.add('is-playing');
     this.btnSing.querySelector('span:last-child').textContent = 'กำลังร้อง…';
