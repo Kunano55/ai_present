@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NNSVS · จากโน้ตเพลงสู่เสียงร้อง — Interactive Deck</title>
+<meta name="description" content="สไลด์นำเสนอแบบเว็บพร้อมอนิเมชั่น อธิบายการทำงานของ NNSVS: Neural Network-Based Singing Voice Synthesis Toolkit (ICASSP 2023)">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/deck.css?v=3">
+<script>
+  /* ตั้งธีมก่อน paint (ไม่กระพริบ) + เป็น fallback ให้ปุ่ม ◐ ทำงานได้
+     แม้ ES module ด้านล่างโหลดไม่สำเร็จ (เช่น cache เก่า / เครือข่ายขัดข้อง) */
+  (function () {
+    var KEY = 'nnsvs-theme';
+    function get() { return document.documentElement.getAttribute('data-theme') || 'light'; }
+    function set(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem(KEY, t); } catch (e) {}
+    }
+    try { set(localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'); } catch (e) { set('light'); }
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('#btnTheme') : null;
+      if (!b || window.__modulesReady) return;   // module จัดการเองแล้ว
+      set(get() === 'light' ? 'dark' : 'light');
+    });
+  })();
+</script>
+</head>
+<body>
+
+<div class="bg-layer" aria-hidden="true">
+  <canvas id="bgWave"></canvas>
+</div>
+
+<div class="progress" aria-hidden="true"><div class="progress__bar" id="progressBar"></div></div>
+
+<main class="deck" id="deck">
+
+  <!-- ══════════════ 1 · TITLE ══════════════ -->
+  <section class="slide slide--title" id="s-title" data-title="เปิด · NNSVS">
+    <div class="title-wrap">
+      <div class="eyebrow" data-anim>ICASSP 2023 &nbsp;·&nbsp; arXiv:2210.15987v2 &nbsp;·&nbsp; eess.AS</div>
+      <h1 class="title-main" data-anim>
+        <span class="title-main__word">NNSVS</span>
+      </h1>
+      <div class="title-sub" data-anim>Neural Network-Based <b>Singing Voice Synthesis</b> Toolkit</div>
+      <p class="title-th" data-anim>เปลี่ยน <span class="hl hl--score">สกอร์ดนตรี + เนื้อร้อง</span> ให้กลายเป็น
+        <span class="hl hl--voice">เสียงร้องจริง</span> ด้วยโครงข่ายประสาทเทียมแบบแยกโมดูล</p>
+
+      <div class="title-meta" data-anim>
+        <div class="meta-card">
+          <span class="meta-card__k">Authors</span>
+          <span class="meta-card__v">Ryuichi Yamamoto · Reo Yoneyama · Tomoki Toda</span>
+          <span class="meta-card__n">LINE Corp. / Nagoya University</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-card__k">Best MOS</span>
+          <span class="meta-card__v meta-card__v--num" data-count="3.86" data-dec="2">0.00</span>
+          <span class="meta-card__n">NNSVS-WORLD v4 (จาก 5.00)</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-card__k">Open source</span>
+          <span class="meta-card__v">github.com/nnsvs/nnsvs</span>
+          <span class="meta-card__n">PyTorch · recipes ครบ · docs ครบ</span>
+        </div>
+      </div>
+
+      <div class="flow-strip" data-anim>
+        <span class="chip chip--score">♪ โน้ต + เนื้อร้อง</span>
+        <span class="arrow">→</span>
+        <span class="chip chip--feat">features</span>
+        <span class="arrow">→</span>
+        <span class="chip chip--model">neural models</span>
+        <span class="arrow">→</span>
+        <span class="chip chip--voice">🔊 เสียงร้อง</span>
+      </div>
+    </div>
+    <div class="hint">กด <kbd>→</kbd> หรือ <kbd>Space</kbd> เพื่อเริ่ม &nbsp;·&nbsp; <kbd>O</kbd> ภาพรวมสไลด์</div>
+  </section>
+
+  <!-- ══════════════ 2 · SCORE-TO-SING ══════════════ -->
+  <section class="slide slide--demo" id="s-svs" data-title="Score-to-Sing คืออะไร">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>01</span>
+      <h2 data-anim>Score-to-Sing คืออะไร <span class="h2-sub">Musical score + Lyrics → Singing voice</span></h2>
+      <p class="s-lead" data-anim>ต่างจาก TTS ที่พูดตามจังหวะภาษา — SVS ต้องร้อง<b>ตรงจังหวะดนตรี ตรงคีย์</b> และมีการเอื้อน โดย 1 โน้ตอาจกินหลาย phoneme</p>
+    </header>
+
+    <div class="demo" data-anim>
+      <div class="demo__left">
+        <div class="roll-panel">
+          <div class="roll-head">
+            <span>Piano roll · โน้ตที่ parse ได้จาก MIDI</span>
+            <span class="roll-head__hint">1 แถบ = 1 โน้ต = 1 พยางค์ (mora)</span>
+          </div>
+          <div class="roll" id="roll"></div>
+          <div class="lyric-strip" id="lyricStrip"></div>
+        </div>
+
+        <div class="demo__ctl">
+          <button class="btn btn--play" id="btnSing"><span class="btn__ico">▶</span><span>ร้องให้ฟัง</span></button>
+          <button class="btn" id="btnStop"><span class="btn__ico">■</span><span>หยุด</span></button>
+          <div class="speed">
+            <span>ความเร็ว</span>
+            <button data-speed="0.7">0.7×</button>
+            <button data-speed="1" class="is-on">1×</button>
+            <button data-speed="1.4">1.4×</button>
+          </div>
+          <label class="cons-edit" title="ระดับเสียงพยัญชนะ: burst / เสียดทาน / ขึ้นจมูก">
+            <span>พยัญชนะ</span>
+            <input id="consLevel" type="range" min="0" max="200" step="5" value="120">
+            <b id="consVal">120%</b>
+          </label>
+          <span class="kbd-hint">คลิกแถบโน้ตเพื่อฟังทีละพยางค์ · กด <kbd>S</kbd> เพื่อร้องทั้งท่อน</span>
+          <label class="lyric-edit">
+            <span>เนื้อร้อง (แก้ไขได้)</span>
+            <input id="lyricInput" type="text" value="ながれてぐときのながででも" spellcheck="false" maxlength="40">
+          </label>
+        </div>
+
+        <p class="demo__note">เสียงในเดโมสร้างเองในเบราว์เซอร์ด้วย formant synth (Web Audio ล้วน — ไม่โหลดไฟล์เสียงหรือโมเดล)
+          ถ้าอยากฟังเสียงจริงจาก neural vocoder ของ NNSVS →
+          <a href="https://r9y9.github.io/projects/nnsvs/" target="_blank" rel="noopener">r9y9.github.io/projects/nnsvs ↗</a></p>
+      </div>
+
+      <aside class="demo__right">
+        <div class="step-list" id="stepList">
+          <div class="step-item" data-step="0">
+            <span class="step-item__n">1</span>
+            <div><b>สกอร์ + เนื้อร้อง</b><small>โน้ต 13 ตัว · 13 mora → จับคู่ 1:1</small></div>
+          </div>
+          <div class="step-item" data-step="1">
+            <span class="step-item__n">2</span>
+            <div><b>Phone-level</b><small>แยก mora เป็น phoneme เช่น <code>n / a</code>, <code>g / a</code></small></div>
+          </div>
+          <div class="step-item" data-step="2">
+            <span class="step-item__n">3</span>
+            <div><b>Frame-level</b><small>ซอยเวลาเป็นเฟรมทุก 5 ms เพื่อป้อน neural net</small></div>
+          </div>
+          <div class="step-item" data-step="3">
+            <span class="step-item__n">4</span>
+            <div><b>เสียงร้อง</b><small>formant synth: พยัญชนะ (burst / เสียดทาน / ขึ้นจมูก / flap) + สระ + vibrato</small></div>
+          </div>
+        </div>
+        <div class="mini-stats" id="miniStats"></div>
+        <div class="note-box">
+          <b>ทำไมต้อง "ตรงโน้ต"?</b>
+          <p>นักร้องจริงไม่ได้เริ่มเสียงตรงหัวโน้ตเป๊ะ และไม่ได้ค้าง pitch เป็นขั้นบันได — มีความหน่วง (time-lag) การลื่นไหล (portamento) และ vibrato
+          ซึ่ง<b>ไม่มีเขียนไว้ในสกอร์</b> โมเดลต้องเรียนรู้สิ่งเหล่านี้จากข้อมูลจริง</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ══════════════ 3 · PROBLEM ══════════════ -->
+  <section class="slide" id="s-problem" data-title="ปัญหาที่เจอ">
+    <header class="s-head">
+      <span class="s-num" data-anim>02</span>
+      <h2 data-anim>ปัญหาที่เจอ <span class="h2-sub">ก่อนจะมี NNSVS</span></h2>
+      <p class="s-lead" data-anim>SVS (Singing Voice Synthesis) ยุคก่อนหน้าติดขัดทั้งเรื่อง <b>เครื่องมือ</b> และเรื่อง <b>ตัวโมเดล</b> — เสียงพอใช้ได้แต่ "ร้องเพี้ยน"</p>
+    </header>
+
+    <div class="prob-grid">
+      <article class="prob" data-anim style="--i:0">
+        <div class="prob__tag">เครื่องมือ</div>
+        <h3>Sinsy เปิดไม่หมด</h3>
+        <p>ผู้บุกเบิก SVS โอเพนซอร์สมากว่า 10 ปี แต่เวอร์ชันสาธารณะมีแค่ <b>HMM-based</b> ส่วน <b>DNN-based ที่ให้เสียงดีไม่ได้เปิดโค้ด</b> → ชุมชนวิจัยต่อยอดไม่ได้</p>
+      </article>
+
+      <article class="prob" data-anim style="--i:1">
+        <div class="prob__tag">เครื่องมือ</div>
+        <h3>Muskits ไม่มีสาย parametric</h3>
+        <p>มี end-to-end SVS + recipes เยอะ แต่<b>ไม่มี parametric approach</b> ที่ให้ทั้ง "คุณภาพดี" และ "pitch มั่นคง" พร้อมกันแบบ Sinsy รุ่นล่าสุด</p>
+      </article>
+
+      <article class="prob prob--hot" data-anim style="--i:2">
+        <div class="prob__tag prob__tag--hot">ตัวโมเดล</div>
+        <h3>F0 ถูกละเลย → ร้องไม่ตรงคีย์</h3>
+        <p>DNN ที่ทำนาย <b>F0 ร่วมกับ spectral features</b> ในเน็ตเดียว จะให้น้ำหนักกับ feature ที่มีมิติสูงกว่าเสมอ ผลคือ <b>F0 เพี้ยน / out-of-tune</b></p>
+      </article>
+
+      <article class="prob prob--hot" data-anim style="--i:3">
+        <div class="prob__tag prob__tag--hot">ตัวโมเดล</div>
+        <h3>Vibrato ต้องเขียนมือ</h3>
+        <p>Sinsy ต้องโมเดล vibrato แบบ explicit (flag + amplitude + speed) → ซับซ้อน ครอบคลุมแค่การสั่นเสียงรูปแบบเดียว และ<b>ไม่ครอบคลุมการเอื้อน/portamento แบบอื่น</b></p>
+      </article>
+
+      <article class="prob prob--hot" data-anim style="--i:4">
+        <div class="prob__tag prob__tag--hot">ตัวโมเดล</div>
+        <h3>End-to-end: ภาพสวย pitch พัง</h3>
+        <p>DiffSinger ให้ fidelity สูงกว่า แต่บ่อยครั้งสร้าง <b>F0 ขาดช่วง (discontinuous)</b> และ <b>vibrato ไม่เสถียร</b> โดยเฉพาะท่อนที่ร้องแบบมีการเคลื่อนไหวมาก</p>
+      </article>
+
+      <article class="prob" data-anim style="--i:5">
+        <div class="prob__tag">คุณภาพเสียง</div>
+        <h3>Over-smoothing</h3>
+        <p>statistical parametric SVS ทำนายค่าเฉลี่ย → สเปกตรัม<b>เรียบเกินจริง เสียงทื่อ</b> ต้องพึ่ง global-variance post-filter ช่วยกู้รายละเอียด</p>
+      </article>
+
+      <article class="prob" data-anim style="--i:6">
+        <div class="prob__tag">ระบบนิเวศ</div>
+        <h3>ทำซ้ำผลวิจัยยาก</h3>
+        <p>ไม่มี codebase ที่รวม <b>time-lag + duration + acoustic + vocoder</b> ไว้ครบพร้อม recipe ที่รันได้จริง ตั้งแต่สกอร์จนถึงไฟล์เสียง</p>
+      </article>
+
+      <article class="prob prob--sum" data-anim style="--i:7">
+        <div class="prob__tag prob__tag--sum">สรุปโจทย์</div>
+        <h3>ต้องการ SVS toolkit ที่…</h3>
+        <ul class="tick">
+          <li>โมดูลาร์ เปลี่ยนแต่ละก้อนได้อิสระ</li>
+          <li>รักษา pitch ให้แม่น <b>และ</b> เสียงเป็นธรรมชาติ</li>
+          <li>เปิดโค้ดทั้งหมด + ทำซ้ำได้</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ══════════════ 4 · PIPELINE ══════════════ -->
+  <section class="slide" id="s-pipeline" data-title="โมเดลทำงานยังไง">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>03</span>
+      <h2 data-anim>โมเดลนี้ทำงานยังไง <span class="h2-sub">4 โมดูลหลัก ตามสถาปัตยกรรมแบบ Sinsy</span></h2>
+    </header>
+
+    <div class="pipe-wrap" data-anim>
+      <div class="pipe-svg-host" id="pipeHost"></div>
+      <div class="pipe-ctl">
+        <button class="btn btn--sm" id="pipePrev">◀ ก่อนหน้า</button>
+        <button class="btn btn--sm btn--play" id="pipePlay"><span class="btn__ico">❚❚</span><span id="pipePlayLabel">หยุดอัตโนมัติ</span></button>
+        <button class="btn btn--sm" id="pipeNext">ถัดไป ▶</button>
+        <div class="pipe-dots" id="pipeDots"></div>
+      </div>
+      <div class="pipe-caption" id="pipeCaption"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 5 · ACOUSTIC MODEL ══════════════ -->
+  <section class="slide" id="s-acoustic" data-title="Acoustic model · multi-stream + AR F0">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>04</span>
+      <h2 data-anim>หัวใจของโมเดล <span class="h2-sub">Multi-stream + Autoregressive F0</span></h2>
+    </header>
+
+    <div class="ac-grid">
+      <div class="ac-col" data-anim style="--i:0">
+        <div class="ac-card ac-card--bad">
+          <div class="ac-card__tag">แบบเก่า · single-stream</div>
+          <h3>เน็ตเดียวทายทุก feature</h3>
+          <div class="stream-viz" id="vizSingle"></div>
+          <p>Loss ถูกครอบงำโดย spectral feature มิติสูง (MGC 60 มิติ) ส่วน <b>LF0 ที่มีแค่ 1 มิติถูกทิ้ง</b> → pitch แบน เพี้ยน</p>
+        </div>
+      </div>
+
+      <div class="ac-col" data-anim style="--i:1">
+        <div class="ac-card ac-card--good">
+          <div class="ac-card__tag">NNSVS · multi-stream</div>
+          <h3>แยกเน็ตตาม stream + ส่งเงื่อนไขต่อกัน</h3>
+          <div class="stream-viz" id="vizMulti"></div>
+          <p>แต่ละ stream มีเน็ตของตัวเอง และ <b>LF0 ถูก condition เข้าโมเดลทำนายสเปกตรัมกับ VUV</b> (v4 ยังส่ง MGC ไปช่วย VUV) → pitch นำ เสียงตาม</p>
+        </div>
+      </div>
+
+      <div class="ac-col ac-col--wide" data-anim style="--i:2">
+        <div class="ac-card">
+          <div class="ac-card__tag">Autoregressive F0</div>
+          <h3>ขั้นบันไดของโน้ต → เส้นทำนองที่มีชีวิต</h3>
+          <div class="f0-host" id="f0Host"></div>
+          <div class="ac-facts">
+            <div><b>Residual log-F0</b><span>ทำนาย "ส่วนต่าง" จาก pitch ของโน้ต ไม่ใช่ค่าสัมบูรณ์ → ไม่หลุดคีย์</span></div>
+            <div><b>Duration-informed Tacotron</b><span>RNN แบบ autoregressive ที่รู้ว่าเฟรมนี้อยู่ใน phoneme ไหน</span></div>
+            <div><b>ไม่ต้องเขียน vibrato มือ</b><span>โมเดลเรียนรู้การสั่น/การเอื้อนเองจากข้อมูล — เป็นธรรมชาติกว่า</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 6 · FIX ══════════════ -->
+  <section class="slide" id="s-fix" data-title="แก้ปัญหาเก่าได้ยังไง">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>05</span>
+      <h2 data-anim>แก้ปัญหาเก่าได้ยังไง <span class="h2-sub">แต่ละ pain point → กลไกที่ NNSVS ใส่เข้ามา</span></h2>
+    </header>
+
+    <div class="fix-list" id="fixList"></div>
+  </section>
+
+  <!-- ══════════════ 7 · DATASET ══════════════ -->
+  <section class="slide" id="s-dataset" data-title="Dataset">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>06</span>
+      <h2 data-anim>Dataset <span class="h2-sub">Namine Ritsu's Japanese Singing Voice Database</span></h2>
+    </header>
+
+    <div class="ds-grid">
+      <div class="ds-stats" data-anim style="--i:0">
+        <div class="stat"><span class="stat__v" data-count="110">0</span><span class="stat__k">เพลง</span><span class="stat__n">นักร้องหญิงญี่ปุ่น 1 คน</span></div>
+        <div class="stat"><span class="stat__v" data-count="4.35" data-dec="2">0</span><span class="stat__k">ชั่วโมง</span><span class="stat__n">เสียงร้องพร้อม annotation</span></div>
+        <div class="stat"><span class="stat__v" data-count="82">0</span><span class="stat__k">มิติ score features</span><span class="stat__n">+ positional อีก 4 มิติ</span></div>
+        <div class="stat"><span class="stat__v" data-count="65">0</span><span class="stat__k">มิติ acoustic (WORLD)</span><span class="stat__n">MGC 60 + LF0 + VUV + BAP 3</span></div>
+      </div>
+
+      <div class="ds-panel" data-anim style="--i:1">
+        <h3 class="ds-h">การแบ่งข้อมูล 100 / 5 / 5</h3>
+        <div class="split-row">
+          <div class="donut-host" id="donutHost"></div>
+          <ul class="split-legend">
+            <li><i style="--c:var(--c-score)"></i><b>Train 100 เพลง</b><span>ช่วง pitch D#3 (146.8 Hz) – B5 (987.8 Hz)</span></li>
+            <li><i style="--c:var(--c-model)"></i><b>Valid 5 เพลง</b><span>ใช้เลือกโมเดล/หยุดฝึก</span></li>
+            <li><i style="--c:var(--c-voice)"></i><b>Test 5 เพลง</b><span>ช่วง pitch D#4 (155.6 Hz) – A5 (880 Hz)</span></li>
+          </ul>
+        </div>
+        <p class="ds-note">แต่ละเพลงถูกตัดเป็นท่อนย่อยตาม<b>ตัวหยุด (rest notes)</b> ในสกอร์ · เสียงต้นฉบับ 44.1 kHz → downsample เป็น <b>24 kHz</b> · ปรับระดับเป็น <b>-26 dB</b> (sv56)</p>
+      </div>
+
+      <div class="ds-panel" data-anim style="--i:2">
+        <h3 class="ds-h">ช่วง pitch ที่ครอบคลุม (และที่ untitled.mid ของเราอยู่)</h3>
+        <div class="kb-host" id="kbHost"></div>
+        <div class="ds-facts">
+          <div><b>Frame shift 5 ms</b><span>ทั้ง time-lag / duration / acoustic ใช้กรอบเวลาเดียวกัน</span></div>
+          <div><b>Acoustic model 100 epochs</b><span>Vocoder ฝึก 600K steps</span></div>
+          <div><b>Annotation ครบ</b><span>timings + phonetic context + musical context ในรูป HTS label</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 8 · RESULTS ══════════════ -->
+  <section class="slide" id="s-results" data-title="ผลลัพธ์">
+    <header class="s-head s-head--tight">
+      <span class="s-num" data-anim>07</span>
+      <h2 data-anim>ผลลัพธ์ <span class="h2-sub">Naturalness MOS · 95% confidence interval</span></h2>
+      <p class="s-lead" data-anim>ผู้ฟังเจ้าของภาษาญี่ปุ่น 18 คน · 5 เพลงทดสอบ × 5 ท่อน (3–20 วินาที) = <b>25 ตัวอย่างต่อระบบ</b> · ให้คะแนนความธรรมชาติ 1–5</p>
+    </header>
+
+    <div class="res-wrap">
+      <div class="res-chart" data-anim>
+        <div class="res-chart__head">
+          <span>ระบบ</span><span>MOS (0 – 5)</span>
+        </div>
+        <div id="mosChart"></div>
+      </div>
+
+      <aside class="res-side">
+        <div class="hero-score" data-anim>
+          <span class="hero-score__k">NNSVS-WORLD v4</span>
+          <span class="hero-score__v" data-count="3.86" data-dec="2">0.00</span>
+          <span class="hero-score__ci">± 0.10</span>
+          <div class="hero-score__bar"><i></i></div>
+          <span class="hero-score__n">ดีที่สุดในทุกระบบ SVS ที่ทดสอบ</span>
+        </div>
+
+        <div class="findings" data-anim>
+          <h3>สิ่งที่ผลทดลองบอก</h3>
+          <ol id="findings"></ol>
+        </div>
+
+        <div class="gap-box" data-anim>
+          <h3>ช่องว่างที่เหลือ</h3>
+          <div class="gap-bars">
+            <div class="gap-bar"><span>บันทึกเสียงจริง</span><b>4.39</b><i style="--w:87.8%"></i></div>
+            <div class="gap-bar"><span>features จริง + vocoder</span><b>4.19</b><i style="--w:83.8%"></i></div>
+            <div class="gap-bar gap-bar--us"><span>NNSVS-WORLD v4</span><b>3.86</b><i style="--w:77.2%"></i></div>
+          </div>
+          <p>vocoder ไม่ใช่คอขวด (features จริงผ่าน vocoder ได้ 4.19) → <b>คอขวดคือ acoustic model</b> ที่ยังเหลือระยะห่าง ~0.33</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ══════════════ 9 · SUMMARY ══════════════ -->
+  <section class="slide slide--end" id="s-summary" data-title="สรุป">
+    <header class="s-head">
+      <span class="s-num" data-anim>08</span>
+      <h2 data-anim>สรุป <span class="h2-sub">NNSVS ให้บทเรียนอะไรเราบ้าง</span></h2>
+    </header>
+
+    <div class="sum-grid">
+      <div class="sum-card" data-anim style="--i:0">
+        <h3>สถาปัตยกรรมสำคัญพอ ๆ กับขนาดโมเดล</h3>
+        <p>การ<b>แยก stream</b> และให้ <b>F0 เป็นตัวนำ</b> สำคัญพอ ๆ กับขนาดโมเดล — ได้ MOS 3.86 เทียบกับ 2.64 ของ Sinsy แบบ single-stream</p>
+      </div>
+      <div class="sum-card" data-anim style="--i:1">
+        <h3>Feature ที่ disentangled ช่วยให้เสถียร</h3>
+        <p>WORLD (MGC/BAP แยกกัน) เสถียรกว่า mel-spectrogram ที่ entangled — mel เวอร์ชัน AR เต็มรูปเจอ <b>exposure bias</b> จนคะแนนตกเหลือ 2.58</p>
+      </div>
+      <div class="sum-card" data-anim style="--i:2">
+        <h3>โมดูลาร์ + เปิดโค้ด = งานวิจัยที่ไปต่อได้</h3>
+        <p>4 โมดูลอิสระต่อภาษา เพิ่ม custom context (falsetto / emotion / ความดัง) ได้ และมี recipe รันได้จริงตั้งแต่สกอร์ถึงไฟล์เสียง</p>
+      </div>
+      <div class="sum-card sum-card--next" data-anim style="--i:3">
+        <h3>งานต่อยอดในเปเปอร์</h3>
+        <ul class="tick">
+          <li>สถาปัตยกรรมขั้นสูงกว่า: VAE · diffusion · GAN</li>
+          <li>มุ่งสู่ end-to-end model</li>
+          <li>(รุ่นหลังเปเปอร์: 48 kHz + SiFI-GAN แทน hn-uSFGAN)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="refs" data-anim>
+      <span class="refs__k">อ้างอิง</span>
+      <p>Yamamoto, R., Yoneyama, R., Toda, T. (2023). <i>NNSVS: A Neural Network-Based Singing Voice Synthesis Toolkit.</i> Proc. IEEE ICASSP 2023. arXiv:2210.15987v2</p>
+      <p class="refs__links">github.com/nnsvs/nnsvs &nbsp;·&nbsp; r9y9.github.io/projects/nnsvs &nbsp;·&nbsp; nnsvs.github.io</p>
+    </div>
+
+    <div class="thanks" data-anim>ขอบคุณครับ · <span>Q &amp; A</span></div>
+  </section>
+
+</main>
+
+<!-- ── navigation chrome ── -->
+<nav class="nav" aria-label="slide navigation">
+  <button class="nav__btn" id="btnPrev" aria-label="สไลด์ก่อนหน้า">‹</button>
+  <div class="nav__dots" id="navDots"></div>
+  <button class="nav__btn" id="btnNext" aria-label="สไลด์ถัดไป">›</button>
+  <div class="nav__right">
+    <button class="nav__icon" id="btnTheme" title="สลับธีมสว่าง/มืด (T)">◐</button>
+    <button class="nav__icon" id="btnMenu" title="รายการสไลด์ (O)">☰</button>
+    <button class="nav__icon" id="btnFull" title="เต็มจอ (F)">⛶</button>
+    <span class="nav__count" id="navCount">1 / 9</span>
+  </div>
+</nav>
+
+<div class="menu" id="menu" hidden>
+  <div class="menu__panel">
+    <div class="menu__head"><span>สไลด์ทั้งหมด</span><button id="menuClose">✕</button></div>
+    <ol class="menu__list" id="menuList"></ol>
+    <div class="menu__foot">
+      <span><kbd>←</kbd> <kbd>→</kbd> เปลี่ยนสไลด์</span>
+      <span><kbd>Space</kbd> ถัดไป</span>
+      <span><kbd>O</kbd> ภาพรวม</span>
+      <span><kbd>T</kbd> สลับธีม</span>
+      <span><kbd>F</kbd> เต็มจอ</span>
+      <span><kbd>S</kbd> ร้อง (ในสไลด์ Score-to-Sing)</span>
+      <span><kbd>1</kbd>–<kbd>9</kbd> กระโดดไปสไลด์</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="assets/js/main.js?v=3"></script>
+</body>
+</html>
