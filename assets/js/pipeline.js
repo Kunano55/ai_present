@@ -3,19 +3,13 @@
    สร้างเป็น SVG แล้วปล่อย "แพ็กเก็ตข้อมูล" ไหลไปตามลูกศรทีละขั้น
    ═══════════════════════════════════════════════════════════ */
 
+import { readColors } from './theme.js';
+
 const NS = 'http://www.w3.org/2000/svg';
 const VW = 1400, VH = 500;
 const CW = 200, GAP = 24, X0 = 40;
 const colX = i => X0 + i * (CW + GAP);
 const colC = i => colX(i) + CW / 2;
-
-const C = {
-  score:  '#45e0c8',
-  feat:   '#7aa7ff',
-  model:  '#b48bff',
-  voice:  '#ff7ab8',
-  out:    '#ffc65c',
-};
 
 /* ── โหนด ── */
 const NODES = [
@@ -114,19 +108,16 @@ export class Pipeline {
     const s = svg('svg', { viewBox: `0 0 ${VW} ${VH}`, preserveAspectRatio: 'xMidYMid meet' });
     this.svg = s;
 
-    // defs
+    const c = (this.c = readColors());
+
+    // defs: หัวลูกศร 2 สถานะ (สีมาจาก CSS class → เปลี่ยนธีมได้อัตโนมัติ)
     const defs = svg('defs', {}, s);
     ['dim', 'on'].forEach(k => {
       const m = svg('marker', {
         id: `arr-${k}`, viewBox: '0 0 10 10', refX: '8.5', refY: '5',
-        markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse',
+        markerWidth: '6.5', markerHeight: '6.5', orient: 'auto-start-reverse',
       }, defs);
-      svg('path', { d: 'M0,0 L10,5 L0,10 z', fill: k === 'on' ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.25)' }, m);
-    });
-    Object.entries(C).forEach(([k, v]) => {
-      const g = svg('linearGradient', { id: `grad-${k}`, x1: '0', y1: '0', x2: '1', y2: '1' }, defs);
-      svg('stop', { offset: '0%', 'stop-color': v, 'stop-opacity': '.30' }, g);
-      svg('stop', { offset: '100%', 'stop-color': v, 'stop-opacity': '.07' }, g);
+      svg('path', { d: 'M0,0 L10,5 L0,10 z', class: k === 'on' ? 'p-arrow-on' : 'p-arrow-dim' }, m);
     });
 
     // lane labels + separators
@@ -148,10 +139,12 @@ export class Pipeline {
     NODES.forEach(n => {
       const x = colX(n.col), y = n.y, w = CW, h = n.h;
       const g = svg('g', { class: 'p-node', 'data-id': n.id }, ng);
+      const kc = c[n.kind] || c.feat;
       svg('rect', {
-        x, y, width: w, height: h, rx: 12,
-        fill: `url(#grad-${n.kind})`, stroke: C[n.kind], 'stroke-opacity': '.45', 'stroke-width': '1.2',
+        x, y, width: w, height: h, rx: 5, class: 'p-bg',
+        fill: c.surface, stroke: kc, 'stroke-opacity': '.4',
       }, g);
+      svg('rect', { x, y, width: 3, height: h, rx: 1.5, fill: kc, 'fill-opacity': '.85' }, g);
       const cx = x + w / 2;
       const lines = n.s.length;
       const ty = y + h / 2 - (lines * 13) / 2 + 2;
@@ -172,8 +165,8 @@ export class Pipeline {
     // mini output visual (คอลัมน์สุดท้ายของ lane b)
     const outX = colX(5), outY = 350, outH = 92;
     svg('rect', {
-      x: outX, y: outY, width: CW, height: outH, rx: 12,
-      fill: 'rgba(255,255,255,.02)', stroke: 'rgba(255,255,255,.1)', 'stroke-dasharray': '5 5',
+      x: outX, y: outY, width: CW, height: outH, rx: 5,
+      fill: c.surface2, stroke: c.line, 'stroke-dasharray': '4 5',
     }, s);
     this.outBars = [];
     const nb = 26, bw = (CW - 30) / nb;
@@ -181,7 +174,7 @@ export class Pipeline {
       const bh = 6 + Math.abs(Math.sin(i * 0.7) * 34) + Math.random() * 12;
       const b = svg('rect', {
         x: outX + 15 + i * bw, y: outY + outH / 2 - bh / 2, width: Math.max(1.6, bw - 2.4), height: bh, rx: 1.4,
-        fill: i % 3 === 0 ? C.out : C.voice, opacity: '.25',
+        fill: i % 3 === 0 ? c.out : c.voice, opacity: '.3',
       }, s);
       this.outBars.push({ el: b, base: bh, y: outY + outH / 2 });
     }
@@ -232,11 +225,11 @@ export class Pipeline {
       if (!rec) return;
       const path = rec.el;
       const len = path.getTotalLength();
-      const color = C[NODES.find(n => n.id === b)?.kind] || C.feat;
+      const pal = this.c || (this.c = readColors());
+      const color = pal[NODES.find(n => n.id === b)?.kind] || pal.feat;
       for (let j = 0; j < 2; j++) {
-        const c = svg('circle', { r: 4.4, fill: color, class: 'p-packet', opacity: '0' }, this.pLayer);
-        c.style.color = color;
-        this.packets.push({ el: c, path, len, off: j * 0.42 + k * 0.09 });
+        const dot = svg('circle', { r: 3.2, fill: color, class: 'p-packet', opacity: '0' }, this.pLayer);
+        this.packets.push({ el: dot, path, len, off: j * 0.42 + k * 0.09 });
       }
     });
 
@@ -292,6 +285,13 @@ export class Pipeline {
     this.auto = false;
     this.playLabel && (this.playLabel.textContent = 'เล่นอัตโนมัติ');
     this.btnPlay?.classList.remove('is-playing');
+  }
+
+  rebuild() {
+    this.built = false;
+    this.host.innerHTML = '';
+    this.build();
+    this.setStep(this.step, true);
   }
 
   activate() {

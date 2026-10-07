@@ -2,7 +2,11 @@
    charts.js — แผนภาพ/อนิเมชั่นทั้งหมดในเด็ค (สร้างเป็น SVG/HTML)
    ═══════════════════════════════════════════════════════════ */
 
+import { readColors } from './theme.js';
+
 const NS = 'http://www.w3.org/2000/svg';
+let C = null;                       // palette ปัจจุบัน (refresh ทุกครั้งที่ build)
+const useColors = () => (C = readColors());
 function svg(tag, attrs = {}, parent) {
   const n = document.createElementNS(NS, tag);
   const styleBits = [];
@@ -36,33 +40,27 @@ const TICK_SEC = 500000 / 1e6 / 96;
 
 /** single-stream (แบบเก่า) */
 export function buildSingleStream(host) {
+  const c = useColors();
   const s = svg('svg', { viewBox: '0 0 360 168', preserveAspectRatio: 'xMidYMid meet' });
-  const defs = svg('defs', {}, s);
-  const flow = (id, color) => {
-    const g = svg('linearGradient', { id, x1: '0', x2: '1' }, defs);
-    svg('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': '.05' }, g);
-    svg('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': '.5' }, g);
-  };
-  flow('ss-in', '#45e0c8');
 
-  box(s, 6, 62, 72, 44, 'frame-level', 'score features', '#45e0c8');
-  arrow(s, 80, 84, 112, 84, '#ffffff', 'dash');
-  box(s, 114, 44, 92, 80, 'DNN เดียว', 'joint prediction', '#ff6b6b');
-  arrow(s, 208, 84, 240, 84, '#ffffff', 'dash');
+  box(s, 6, 62, 72, 44, 'frame-level', 'score features', c.score);
+  arrow(s, 80, 84, 112, 84, c.txt3, 'dash');
+  box(s, 114, 44, 92, 80, 'DNN เดียว', 'joint prediction', c.bad);
+  arrow(s, 208, 84, 240, 84, c.txt3, 'dash');
 
   // output stack — เห็นชัดว่า LF0 บางเฉียบ
   const outs = [
-    ['MGC · 60d', 12, 58, '#7aa7ff', .85],
-    ['LF0 · 1d', 74, 9, '#ff6b6b', 1],
-    ['BAP · 3d', 87, 20, '#7aa7ff', .5],
-    ['VUV · 1d', 111, 9, '#7aa7ff', .35],
+    ['MGC · 60d', 12, 58, c.feat, .85],
+    ['LF0 · 1d', 74, 9, c.bad, 1],
+    ['BAP · 3d', 87, 20, c.feat, .5],
+    ['VUV · 1d', 111, 9, c.feat, .35],
   ];
   outs.forEach(([lab, y, h, col, op]) => {
-    const r = svg('rect', { x: 244, y, width: 60, height: h, rx: 3, fill: col, opacity: op * .55 }, s);
+    const r = svg('rect', { x: 244, y, width: 60, height: h, rx: 2, fill: col, opacity: op * .7 }, s);
     svg('text', { x: 312, y: y + h / 2 + 4, class: 'svg-lbl svg-lbl--sm' }, s).textContent = lab;
     if (lab.startsWith('LF0')) {
       r.setAttribute('class', 'pulse-bad');
-      svg('text', { x: 274, y: 148, 'text-anchor': 'middle', class: 'svg-lbl svg-lbl--sm', fill: '#ff6b6b' }, s)
+      svg('text', { x: 274, y: 148, 'text-anchor': 'middle', class: 'svg-lbl svg-lbl--sm', fill: c.bad }, s)
         .textContent = '← มิติเดียว แพ้สเปกตรัม';
     }
   });
@@ -75,32 +73,33 @@ export function buildSingleStream(host) {
 
 /** multi-stream (NNSVS) */
 export function buildMultiStream(host) {
+  const c = useColors();
   const s = svg('svg', { viewBox: '0 0 360 168', preserveAspectRatio: 'xMidYMid meet' });
-  box(s, 6, 62, 66, 44, 'frame-level', 'score features', '#45e0c8');
+  box(s, 6, 62, 66, 44, 'frame-level', 'score features', c.score);
 
   const streams = [
-    { id: 'lf0', lab: 'LF0', sub: 'AR · residual', y: 10, h: 30, c: '#ff7ab8' },
-    { id: 'mgc', lab: 'MGC', sub: 'AR · 60d', y: 50, h: 30, c: '#7aa7ff' },
-    { id: 'bap', lab: 'BAP', sub: 'AR · 3d', y: 90, h: 26, c: '#7aa7ff' },
-    { id: 'vuv', lab: 'VUV', sub: 'non-AR', y: 124, h: 26, c: '#b48bff' },
+    { id: 'lf0', lab: 'LF0', sub: 'AR · residual', y: 10, h: 30, c: c.voice },
+    { id: 'mgc', lab: 'MGC', sub: 'AR · 60d', y: 50, h: 30, c: c.feat },
+    { id: 'bap', lab: 'BAP', sub: 'AR · 3d', y: 90, h: 26, c: c.feat },
+    { id: 'vuv', lab: 'VUV', sub: 'non-AR', y: 124, h: 26, c: c.model },
   ];
 
   streams.forEach(st => {
-    arrow(s, 74, 84, 108, st.y + st.h / 2, '#ffffff', 'dash');
+    arrow(s, 74, 84, 108, st.y + st.h / 2, c.txt3, 'dash');
   });
 
   streams.forEach(st => {
     box(s, 110, st.y, 108, st.h, st.lab, st.sub, st.c, true);
-    svg('rect', { x: 226, y: st.y + 4, width: 34, height: st.h - 8, rx: 3, fill: st.c, opacity: .28 }, s);
-    svg('rect', { x: 226, y: st.y + 4, width: 34, height: st.h - 8, rx: 3, fill: 'none', stroke: st.c, 'stroke-opacity': .6 }, s);
+    svg('rect', { x: 226, y: st.y + 4, width: 34, height: st.h - 8, rx: 2, fill: st.c, opacity: .22 }, s);
+    svg('rect', { x: 226, y: st.y + 4, width: 34, height: st.h - 8, rx: 2, fill: 'none', stroke: st.c, 'stroke-opacity': .55 }, s);
   });
 
   // เส้น condition: LF0 → stream อื่น
   const cond = svg('path', {
     d: 'M264 25 C 300 25, 300 60, 268 62 M264 25 C 316 30, 316 100, 268 101 M264 25 C 336 40, 336 134, 268 135',
-    fill: 'none', stroke: '#ff7ab8', 'stroke-width': '1.5', 'stroke-dasharray': '4 5', class: 'flow-dash',
+    fill: 'none', stroke: c.voice, 'stroke-width': '1.3', 'stroke-dasharray': '4 5', class: 'flow-dash',
   }, s);
-  svg('text', { x: 300, y: 152, class: 'svg-lbl svg-lbl--sm', fill: '#ff7ab8' }, s)
+  svg('text', { x: 300, y: 152, class: 'svg-lbl svg-lbl--sm', fill: c.voice }, s)
     .textContent = 'condition log-F0 → สเปกตรัม/VUV';
   svg('text', { x: 118, y: 160, class: 'svg-lbl svg-lbl--sm' }, s)
     .textContent = 'v4: AR ทั้ง MGC · LF0 · BAP';
@@ -111,19 +110,19 @@ export function buildMultiStream(host) {
 }
 
 function box(s, x, y, w, h, t1, t2, color, small) {
-  svg('rect', { x, y, width: w, height: h, rx: 8, fill: color, 'fill-opacity': '.12', stroke: color, 'stroke-opacity': '.5' }, s);
+  svg('rect', { x, y, width: w, height: h, rx: 4, fill: color, 'fill-opacity': '.08', stroke: color, 'stroke-opacity': '.45' }, s);
   const fs = small ? 12 : 11;
-  svg('text', { x: x + w / 2, y: y + h / 2 - (t2 ? 3 : -4), 'text-anchor': 'middle', class: 'svg-lbl', 'font-size': fs, fill: '#fff' }, s).textContent = t1;
+  svg('text', { x: x + w / 2, y: y + h / 2 - (t2 ? 3 : -4), 'text-anchor': 'middle', class: 'svg-lbl', 'font-size': fs, fill: C.txt }, s).textContent = t1;
   if (t2) svg('text', { x: x + w / 2, y: y + h / 2 + 11, 'text-anchor': 'middle', class: 'svg-lbl svg-lbl--sm', 'font-size': 9 }, s).textContent = t2;
 }
 
 function arrow(s, x1, y1, x2, y2, color, style) {
   const p = svg('path', {
     d: x1 === x2 || y1 === y2 ? `M${x1} ${y1} L${x2} ${y2}` : `M${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`,
-    fill: 'none', stroke: color, 'stroke-opacity': '.35', 'stroke-width': '1.4',
+    fill: 'none', stroke: color, 'stroke-opacity': '.55', 'stroke-width': '1.2',
   }, s);
   if (style === 'dash') { p.setAttribute('stroke-dasharray', '4 5'); p.setAttribute('class', 'flow-dash'); }
-  svg('circle', { cx: x2, cy: y2, r: 2.2, fill: color, 'fill-opacity': '.55' }, s);
+  svg('circle', { cx: x2, cy: y2, r: 2, fill: color, 'fill-opacity': '.8' }, s);
 }
 
 let cssInjected = false;
@@ -133,9 +132,9 @@ function injectAnimCss() {
   const st = document.createElement('style');
   st.textContent = `
     @keyframes dashmove{to{stroke-dashoffset:-40}}
-    .flow-dash{animation:dashmove 2.4s linear infinite}
-    @keyframes pulsebad{0%,100%{opacity:.35}50%{opacity:1;filter:drop-shadow(0 0 6px #ff6b6b)}}
-    .pulse-bad{animation:pulsebad 1.5s ease-in-out infinite}
+    .flow-dash{animation:dashmove 3.4s linear infinite}
+    @keyframes pulsebad{0%,100%{opacity:.4}50%{opacity:1}}
+    .pulse-bad{animation:pulsebad 2.2s ease-in-out infinite}
     @keyframes drawin{to{stroke-dashoffset:0}}
     @keyframes groww{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   `;
@@ -145,6 +144,7 @@ function injectAnimCss() {
 /* ═══════════════ 2. F0 contour chart ═══════════════ */
 
 export function buildF0Chart(host) {
+  const c = useColors();
   const W = 1200, H = 210, padL = 46, padR = 18, padT = 16, padB = 30;
   const totalTicks = MELODY.reduce((a, [, d]) => a + d, 0);
   const lo = Math.min(...MELODY.map(n => n[0])) - 2.5;
@@ -158,7 +158,7 @@ export function buildF0Chart(host) {
   // gridlines
   for (let p = Math.ceil(lo); p <= Math.floor(hi); p++) {
     const y = Y(p);
-    svg('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: 'rgba(255,255,255,.07)', 'stroke-width': 1 }, s);
+    svg('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: c.lineSoft, 'stroke-width': 1 }, s);
     if (![1, 3, 6, 8, 10].includes(((p % 12) + 12) % 12)) {
       svg('text', { x: padL - 8, y: y + 3.5, 'text-anchor': 'end', class: 'svg-lbl svg-lbl--sm', 'font-size': 9 }, s)
         .textContent = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][((p % 12) + 12) % 12] + (Math.floor(p / 12) - 1);
@@ -172,7 +172,7 @@ export function buildF0Chart(host) {
     step += (i === 0 ? `M${x1} ${y}` : ` L${x1} ${y}`) + ` L${x2} ${y}`;
     t += d;
   });
-  svg('path', { d: step, fill: 'none', stroke: 'rgba(255,255,255,.42)', 'stroke-width': 1.6, 'stroke-dasharray': '5 4' }, s);
+  svg('path', { d: step, fill: 'none', stroke: c.txt3, 'stroke-width': 1.4, 'stroke-dasharray': '5 4' }, s);
 
   // (2) single-stream: over-smoothed F0 (เกือบแบน ค่อย ๆ ลู่เข้าค่าเฉลี่ย)
   let flat = '';
@@ -188,7 +188,7 @@ export function buildF0Chart(host) {
     }
     t += d;
   });
-  svg('path', { d: flat, fill: 'none', stroke: '#ff6b6b', 'stroke-width': 1.7, opacity: '.9' }, s);
+  svg('path', { d: flat, fill: 'none', stroke: c.bad, 'stroke-width': 1.6, opacity: '.85' }, s);
 
   // (3) NNSVS AR F0: time-lag + portamento + overshoot + vibrato
   const LAG = 0.045;                        // วินาที (time-lag ที่โมเดลทำนาย)
@@ -217,26 +217,25 @@ export function buildF0Chart(host) {
     }
     prev = p; t += d;
   });
-  const natPath = svg('path', { d: nat, fill: 'none', stroke: '#ff7ab8', 'stroke-width': 2.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s);
-  natPath.style.filter = 'drop-shadow(0 0 8px rgba(255,122,184,.6))';
+  const natPath = svg('path', { d: nat, fill: 'none', stroke: c.voice, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s);
 
   // หัวโน้ต (marker)
   t = 0;
   MELODY.forEach(([p, d]) => {
-    svg('circle', { cx: X(t + lagTicks), cy: Y(p), r: 2.6, fill: '#0b1020', stroke: '#ff7ab8', 'stroke-width': 1.4 }, s);
+    svg('circle', { cx: X(t + lagTicks), cy: Y(p), r: 2.4, fill: c.surface, stroke: c.voice, 'stroke-width': 1.3 }, s);
     t += d;
   });
 
   // legend
   const leg = [
-    ['สกอร์ (pitch ขั้นบันได)', 'rgba(255,255,255,.55)', '5 4'],
-    ['single-stream · over-smoothed', '#ff6b6b', ''],
-    ['NNSVS · AR log-F0 (+time-lag, vibrato)', '#ff7ab8', ''],
+    ['สกอร์ (pitch ขั้นบันได)', c.txt3, '5 4'],
+    ['single-stream · over-smoothed', c.bad, ''],
+    ['NNSVS · AR log-F0 (+time-lag, vibrato)', c.voice, ''],
   ];
   leg.forEach(([lab, col, dash], i) => {
     const y = H - 16;
     const x = padL + i * 392;
-    svg('line', { x1: x, y1: y, x2: x + 26, y2: y, stroke: col, 'stroke-width': 2.4, 'stroke-dasharray': dash }, s);
+    svg('line', { x1: x, y1: y, x2: x + 26, y2: y, stroke: col, 'stroke-width': 2, 'stroke-dasharray': dash }, s);
     svg('text', { x: x + 32, y: y + 3.5, class: 'svg-lbl svg-lbl--sm', 'font-size': 10 }, s).textContent = lab;
   });
 
@@ -263,28 +262,29 @@ export function buildF0Chart(host) {
 /* ═══════════════ 3. donut: dataset split ═══════════════ */
 
 export function buildDonut(host) {
+  const c = useColors();
   const s = svg('svg', { viewBox: '0 0 120 120' });
   const R = 46, CIRC = 2 * Math.PI * R;
-  svg('circle', { cx: 60, cy: 60, r: R, fill: 'none', stroke: 'rgba(255,255,255,.08)', 'stroke-width': 15 }, s);
+  svg('circle', { cx: 60, cy: 60, r: R, fill: 'none', stroke: c.track, 'stroke-width': 12 }, s);
   const segs = [
-    { v: 100 / 110, c: 'var(--c-score)' },
-    { v: 5 / 110, c: 'var(--c-model)' },
-    { v: 5 / 110, c: 'var(--c-voice)' },
+    { v: 100 / 110, c: c.score },
+    { v: 5 / 110, c: c.model },
+    { v: 5 / 110, c: c.voice },
   ];
   let acc = 0;
   const arcs = segs.map(sg => {
-    const c = svg('circle', {
-      cx: 60, cy: 60, r: R, fill: 'none', stroke: sg.c, 'stroke-width': 15,
+    const el = svg('circle', {
+      cx: 60, cy: 60, r: R, fill: 'none', stroke: sg.c, 'stroke-width': 12,
       'stroke-dasharray': `0 ${CIRC}`, 'stroke-dashoffset': -acc * CIRC,
     }, s);
     acc += sg.v;
-    return { el: c, len: sg.v * CIRC, gap: CIRC - sg.v * CIRC };
+    return { el, len: sg.v * CIRC, gap: CIRC - sg.v * CIRC };
   });
   host.innerHTML = '';
   host.appendChild(s);
-  const c = html('div', 'donut-c');
-  c.innerHTML = '<b>110</b><span>เพลง</span>';
-  host.appendChild(c);
+  const center = html('div', 'donut-c');
+  center.innerHTML = '<b>110</b><span>เพลง</span>';
+  host.appendChild(center);
   return {
     play() {
       arcs.forEach((a, i) => {
@@ -302,6 +302,7 @@ export function buildDonut(host) {
 /* ═══════════════ 4. keyboard: pitch coverage ═══════════════ */
 
 export function buildKeyboard(host) {
+  const c = useColors();
   const W = 760, H = 146;
   const LO = 48, HI = 96;                       // C3 → C6
   const naturals = [];
@@ -322,7 +323,7 @@ export function buildKeyboard(host) {
   naturals.forEach(p => {
     svg('rect', {
       x: xOf(p) + 0.6, y: keyTop, width: ww - 1.2, height: keyH, rx: 2,
-      fill: 'rgba(255,255,255,.86)', stroke: 'rgba(0,0,0,.5)', 'stroke-width': .6,
+      fill: c.keyWhite, stroke: c.line, 'stroke-width': .8,
     }, s);
   });
   // คีย์ดำ
@@ -330,7 +331,7 @@ export function buildKeyboard(host) {
     if ([1, 3, 6, 8, 10].includes(p % 12)) {
       svg('rect', {
         x: xOf(p), y: keyTop, width: wOf(p), height: keyH * 0.62, rx: 2,
-        fill: '#141a2c', stroke: 'rgba(255,255,255,.22)', 'stroke-width': .6,
+        fill: c.keyBlack, stroke: c.line, 'stroke-width': .6,
       }, s);
     }
   }
@@ -338,23 +339,23 @@ export function buildKeyboard(host) {
   [48, 60, 72, 84, 96].forEach(p => {
     svg('text', {
       x: xOf(p) + ww / 2, y: keyTop + keyH + 15, 'text-anchor': 'middle',
-      class: 'svg-lbl svg-lbl--sm', 'font-size': 10, fill: 'rgba(255,255,255,.5)',
+      class: 'svg-lbl svg-lbl--sm', 'font-size': 10,
     }, s).textContent = `C${p / 12 - 1}`;
   });
 
   const bands = [
-    { lo: 51, hi: 95, c: 'var(--c-score)', lab: 'train · D#3 – B5 (146.8 – 987.8 Hz)', y: 4 },
-    { lo: 63, hi: 81, c: 'var(--c-voice)', lab: 'test · D#4 – A5 (155.6 – 880 Hz)', y: 22 },
-    { lo: 51, hi: 63, c: 'var(--c-out)',   lab: 'untitled.mid · D#3 – D#4', y: 40 },
+    { lo: 51, hi: 95, c: c.score, lab: 'train · D#3 – B5 (146.8 – 987.8 Hz)', y: 4 },
+    { lo: 63, hi: 81, c: c.voice, lab: 'test · D#4 – A5 (155.6 – 880 Hz)', y: 22 },
+    { lo: 51, hi: 63, c: c.out,   lab: 'untitled.mid · D#3 – D#4', y: 40 },
   ];
   const rects = bands.map(b => {
     const x = xOf(b.lo), w = xOf(b.hi) + wOf(b.hi) - x;
     const bh = 14;
     const g = svg('g', {}, s);
-    const r = svg('rect', { x, y: b.y, width: 0, height: bh, rx: 4, fill: b.c, opacity: .88 }, g);
+    const r = svg('rect', { x, y: b.y, width: 0, height: bh, rx: 3, fill: b.c }, g);
     const tx = svg('text', {
       x: x + 7, y: b.y + 10.5, class: 'svg-lbl', 'font-size': 9.5,
-      fill: 'rgba(8,12,22,.92)', 'font-weight': '600', opacity: '0',
+      fill: c.onBand, 'font-weight': '600', opacity: '0',
     }, g);
     tx.textContent = b.lab;
     return { el: r, tx, w };
@@ -402,21 +403,16 @@ const MOS = [
   ['Recordings (เสียงจริง)', 4.39, .08, 'ceil'],
 ];
 
-const GRAD = {
-  base: 'linear-gradient(90deg,#4b5672,#77839f)',
-  nn: 'linear-gradient(90deg,#2b8f86,#45e0c8)',
-  best: 'linear-gradient(90deg,#2fa66a,#6ef2a2)',
-  ceil: 'linear-gradient(90deg,#a97b2c,#ffc65c)',
-};
-
 export function buildMosChart(host) {
+  const c = useColors();
+  const FILL = { base: c.barBase, nn: c.barNN, best: c.barBest, ceil: c.barCeil };
   host.innerHTML = '';
   MOS.forEach(([name, mos, ci, kind], i) => {
     const row = html('div', 'mrow' + (kind === 'best' ? ' mrow--best' : '') + (kind === 'ceil' ? ' mrow--ceil' : ''));
     html('span', 'mrow__n', name, row);
     const bar = html('div', 'mrow__bar', null, row);
     const fill = html('i', null, null, bar);
-    fill.style.background = GRAD[kind];
+    fill.style.background = FILL[kind];
     fill.style.setProperty('--w', `${(mos / 5) * 100}%`);
     fill.style.setProperty('--d', i);
     const ciEl = html('span', 'mrow__ci', null, bar);

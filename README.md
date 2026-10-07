@@ -55,7 +55,8 @@ D#3  F3  F#3  G#3  A#3  D#4  C#4  A#3  D#3  A#3  G#3  F#3  F3
 ```
 index.html          โครงสไลด์ทั้งหมด
 untitled.mid        ไฟล์ MIDI ต้นทาง (ใช้จริงในสไลด์ 3)
-assets/css/deck.css ธีม + layout + อนิเมชั่น
+assets/css/deck.css ธีม minimal (light/dark) + layout + อนิเมชั่น
+assets/js/theme.js  อ่าน palette จาก CSS variables + สลับธีม
 assets/js/midi.js   parser ไฟล์ Standard MIDI
 assets/js/jp.js     ตัด mora / romaji / สระ / phoneme
 assets/js/synth.js  formant singing synth (Web Audio)

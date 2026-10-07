@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NNSVS · จากโน้ตเพลงสู่เสียงร้อง — Interactive Deck</title>
 <meta name="description" content="สไลด์นำเสนอแบบเว็บพร้อมอนิเมชั่น อธิบายการทำงานของ NNSVS: Neural Network-Based Singing Voice Synthesis Toolkit (ICASSP 2023)">
+<meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500;700;900&display=swap" rel="stylesheet">
@@ -13,12 +14,7 @@
 <body>
 
 <div class="bg-layer" aria-hidden="true">
-  <div class="bg-grid"></div>
-  <div class="bg-glow bg-glow--a"></div>
-  <div class="bg-glow bg-glow--b"></div>
-  <div class="bg-glow bg-glow--c"></div>
   <canvas id="bgWave"></canvas>
-  <div class="bg-noise"></div>
 </div>
 
 <div class="progress" aria-hidden="true"><div class="progress__bar" id="progressBar"></div></div>
@@ -407,6 +403,7 @@
   <div class="nav__dots" id="navDots"></div>
   <button class="nav__btn" id="btnNext" aria-label="สไลด์ถัดไป">›</button>
   <div class="nav__right">
+    <button class="nav__icon" id="btnTheme" title="สลับธีมสว่าง/มืด (T)">◐</button>
     <button class="nav__icon" id="btnMenu" title="รายการสไลด์ (O)">☰</button>
     <button class="nav__icon" id="btnFull" title="เต็มจอ (F)">⛶</button>
     <span class="nav__count" id="navCount">1 / 9</span>
@@ -421,6 +418,7 @@
       <span><kbd>←</kbd> <kbd>→</kbd> เปลี่ยนสไลด์</span>
       <span><kbd>Space</kbd> ถัดไป</span>
       <span><kbd>O</kbd> ภาพรวม</span>
+      <span><kbd>T</kbd> สลับธีม</span>
       <span><kbd>F</kbd> เต็มจอ</span>
       <span><kbd>S</kbd> ร้อง (ในสไลด์ Score-to-Sing)</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> กระโดดไปสไลด์</span>

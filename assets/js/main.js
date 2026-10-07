@@ -5,15 +5,16 @@
 import { Deck } from './deck.js';
 import { SvsDemo } from './demo.js';
 import { Pipeline } from './pipeline.js';
+import { initTheme, toggleTheme, readColors } from './theme.js';
 import {
   buildSingleStream, buildMultiStream, buildF0Chart, buildDonut,
   buildKeyboard, buildMosChart, buildFixList, buildFindings, animateCounters,
 } from './charts.js';
 
-/* ── คลื่นพื้นหลัง (canvas) ── */
+/* ── เส้นคลื่นเดียว จาง ๆ เป็นพื้นหลังสไลด์เปิด ── */
 function backgroundWave(canvas) {
   const ctx = canvas.getContext?.('2d');
-  if (!ctx) return;                     // canvas ใช้ไม่ได้ → ข้ามพื้นหลังเคลื่อนไหว
+  if (!ctx) return;
   let w = 0, h = 0, dpr = 1, raf = 0, t = 0;
 
   const resize = () => {
@@ -24,40 +25,32 @@ function backgroundWave(canvas) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
 
-  const waves = [
-    { a: 0.20, f: 0.0042, sp: 0.34, y: 0.78, c: '69,224,200', lw: 1.4 },
-    { a: 0.15, f: 0.0061, sp: -0.26, y: 0.83, c: '122,167,255', lw: 1.2 },
-    { a: 0.11, f: 0.0088, sp: 0.46, y: 0.88, c: '255,122,184', lw: 1.1 },
-  ];
-
   const draw = () => {
+    const c = readColors();
     ctx.clearRect(0, 0, w, h);
-    waves.forEach((v, k) => {
-      ctx.beginPath();
-      const base = h * v.y;
-      for (let x = 0; x <= w; x += 4) {
-        const env = Math.sin((x / w) * Math.PI) ** 1.2;
-        const y = base
-          + Math.sin(x * v.f + t * v.sp) * h * v.a * 0.5 * env
-          + Math.sin(x * v.f * 2.3 + t * v.sp * 1.7 + k) * h * v.a * 0.18 * env;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = `rgba(${v.c},.42)`;
-      ctx.lineWidth = v.lw;
-      ctx.shadowBlur = 14;
-      ctx.shadowColor = `rgba(${v.c},.35)`;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    });
-    t += 0.016;
+    ctx.beginPath();
+    const base = h * 0.84;
+    for (let x = 0; x <= w; x += 3) {
+      const env = Math.sin((x / w) * Math.PI) ** 1.6;
+      const y = base
+        + Math.sin(x * 0.006 + t * 0.5) * h * 0.045 * env
+        + Math.sin(x * 0.017 - t * 0.32) * h * 0.014 * env;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = c.txt3;
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    t += 0.014;
     raf = requestAnimationFrame(draw);
   };
 
   resize();
   window.addEventListener('resize', resize);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) cancelAnimationFrame(raf);
-    else { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+    cancelAnimationFrame(raf);
+    if (!document.hidden) raf = requestAnimationFrame(draw);
   });
   draw();
 }
@@ -74,6 +67,7 @@ function toast(msg) {
 
 /* ── ประกอบ ── */
 async function boot() {
+  initTheme();
   backgroundWave(document.getElementById('bgWave'));
 
   const demo = new SvsDemo(document.getElementById('s-svs'));
@@ -86,12 +80,17 @@ async function boot() {
     playLabel: document.getElementById('pipePlayLabel'),
   });
 
-  buildSingleStream(document.getElementById('vizSingle'));
-  buildMultiStream(document.getElementById('vizMulti'));
-  const f0 = buildF0Chart(document.getElementById('f0Host'));
-  const donut = buildDonut(document.getElementById('donutHost'));
-  const kb = buildKeyboard(document.getElementById('kbHost'));
-  const mos = buildMosChart(document.getElementById('mosChart'));
+  // แผนภาพทั้งหมด — เก็บตัวควบคุมไว้เพื่อให้ theme toggle เรียกเล่นอนิเมชั่นซ้ำได้
+  let f0, donut, kb, mos;
+  const buildDiagrams = () => {
+    buildSingleStream(document.getElementById('vizSingle'));
+    buildMultiStream(document.getElementById('vizMulti'));
+    f0 = buildF0Chart(document.getElementById('f0Host'));
+    donut = buildDonut(document.getElementById('donutHost'));
+    kb = buildKeyboard(document.getElementById('kbHost'));
+    mos = buildMosChart(document.getElementById('mosChart'));
+  };
+  buildDiagrams();
   buildFixList(document.getElementById('fixList'));
   buildFindings(document.getElementById('findings'));
 
@@ -101,6 +100,7 @@ async function boot() {
   const deck = new Deck({
     onActivate: (slide) => {
       slide.classList.add('is-shown');
+      document.body.classList.toggle('on-title', slide.id === 's-title');
       switch (slide.id) {
         case 's-title': animateCounters(slide); break;
         case 's-svs': demo.activate(); break;
@@ -118,15 +118,27 @@ async function boot() {
   });
   deck.init();
 
-  // ปุ่มลัดสำหรับคนดู
+  // ── สลับธีม: สร้างแผนภาพใหม่ด้วย palette ใหม่ แล้วเล่นอนิเมชั่นของสไลด์ปัจจุบันซ้ำ ──
+  const retheme = () => {
+    const name = toggleTheme();
+    buildDiagrams();
+    pipeline.rebuild();
+    demo.retheme?.();
+    const cur = deck.slides[deck.i];
+    deck.hooks.onDeactivate?.(cur, deck.i);
+    deck.hooks.onActivate?.(cur, deck.i);
+    toast(name === 'dark' ? 'ธีมมืด (minimal)' : 'ธีมสว่าง (minimal)');
+  };
+  document.getElementById('btnTheme').addEventListener('click', retheme);
+
   window.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea')) return;
-    if (e.key === 's' || e.key === 'ห') {          // s = sing
-      if (deck.slides[deck.i].id === 's-svs') demo.play();
-    }
+    if (e.key === 't' || e.key === 'T' || e.key === 'ๆ') retheme();
+    if ((e.key === 's' || e.key === 'ห') && deck.slides[deck.i].id === 's-svs') demo.play();
   });
 
   window.deck = deck;   // เผื่อ debug
+  window.retheme = retheme;
 }
 
 boot().catch(err => {
