@@ -199,7 +199,7 @@ export class SvsDemo {
     });
     const cl = document.getElementById('consLevel');
     const cv = document.getElementById('consVal');
-    this.consLevel = cl ? parseInt(cl.value, 10) / 100 : 1.2;
+    this.consLevel = cl ? parseInt(cl.value, 10) / 100 : 1;
     if (cl) cl.addEventListener('input', () => {
       this.consLevel = parseInt(cl.value, 10) / 100;
       if (cv) cv.textContent = cl.value + '%';
