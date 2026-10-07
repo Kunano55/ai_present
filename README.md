@@ -58,10 +58,12 @@ D#3  F3  F#3  G#3  A#3  D#4  C#4  A#3  D#3  A#3  G#3  F#3  F3
 **ช่วงพยัญชนะ → สระ** — พยัญชนะสังเคราะห์ตามประเภทจริง (stop = ปิดปาก+noise burst,
 affricate, fricative = noise ผ่าน highpass/bandpass, nasal = เสียงขึ้นจมูก, flap = /r/,
 glide = /y/ /w/) ต่อเข้า master โดยตรงไม่ผ่าน envelope ของสระ ส่วนสระใช้ sawtooth (เส้นเสียง)
-→ formant bank 5 แถบลื่นจากตำแหน่งพยัญชนะ + vibrato + portamento + breath noise
+→ formant bank 5 แถบ (peaking cascade) ลื่นจากตำแหน่งพยัญชนะ + vibrato + portamento + breath noise
+ระดับเสียงทุกชั้น calibrate ด้วยการจำลองกราฟเสียง (RBJ biquad) ใน `/tmp/smoke/verify.mjs`
+เพื่อให้พยัญชนะดังราว 0.3–0.75× ของเสียงร้อง และไม่มีการขยายเกินใน reverb
 เป็นภาพย่อของสิ่งที่ acoustic model + vocoder ของ NNSVS ทำจริง
 
-สไลด์เดโมมีแถบเลื่อน **พยัญชนะ** 0–200 % (ค่าเริ่มต้น 120 %) ปรับความชัดของ
+สไลด์เดโมมีแถบเลื่อน **พยัญชนะ** 0–200 % (ค่าเริ่มต้น 100 % = ระดับที่ calibrate แล้ว) ปรับความชัดของ
 burst / เสียดทาน / ขึ้นจมูกได้ทันที และมีลิงก์ไปหน้า demo เสียงจริงของ NNSVS ไว้เทียบเสียง
 
 ## โครงสร้างไฟล์
